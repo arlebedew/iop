@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Optimizacija</title>
+	<meta charset="UTF-8">
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/10.6.1/math.js"
+	integrity="sha512-qBGHnIjw1CTZC0Vpshjjb4StUqVHm8LqqE4cco3FdEu1lS+gpXv/HON5qNjNq5mVnIlZPABGqkGksRrV6NZx+A=="
+	crossorigin="anonymous"
+	referrerpolicy="no-referrer"></script>
+	<script src="https://code.jquery.com/jquery-3.6.0.min.js"
+	integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4="
+	crossorigin="anonymous"></script>
+	<style>
+		body{
+			width: 30%;
+			font-family: "Arial";
+
+		}
+
+		a#to-csv {
+			font-size: 13px;
+		}
+
+		.inn{
+			display: inline-block;
+			width: 24%;
+		}
+
+		input.inn{
+			margin: 0;
+			padding: 0;
+		}
+
+		span.inn{
+			text-align: center;
+		}
+
+		input::-webkit-outer-spin-button,
+		input::-webkit-inner-spin-button {
+		  -webkit-appearance: none;
+		  margin: 0;
+		}
+		#actions{
+			display: flex;
+ 			justify-content: center;
+ 			height: 2rem;
+    		padding: 1% 0 5% 0;
+		}
+
+		.action{
+			border: 1px solid grey;
+		    background-color: aliceblue;
+		    text-align: center;
+		    padding: 1%;
+		    text-decoration: none;
+		    color: black;
+		    cursor: pointer;
+		}
+
+	</style>
+
+</head>
+<body>
+	<div>
+		<h4>Ievaddati</h4>
+		<span class="inn">x<sub>1</sub></span>
+		<span class="inn">x<sub>2</sub></span>
+		<span class="inn">t</span>
+		<span class="inn">&epsilon;</span>
+	</div>
+	<div id="values-go-here">
+	</div>
+	<div id="actions">
+		<button class="action" id="optional" onclick="addRow()">Pievienot alternatīvas vertības</button>
+		<button class="action" id="calculate" onclick="launch()">Rēķināt</button>
+		<a class="action" href="" id="to-csv" style="display: none">Dati .CSV formatā</a>
+	</div>
+	<div id="result-head" style="display: none">
+		<h4>Rezultāti</h4>
+		<span class="inn">x<sub>1</sub></span>
+		<span class="inn">x<sub>2</sub></span>
+		<span class="inn">Iterāciju skaits</span>
+	</div>	
+	<div id="results-go-here">
+	</div>
+</body>
+</html>
+
+<script type="text/javascript">
+
+	function exportToCsv(){
+
+		let toCsv = "data:text/csv;charset=utf-8,";
+
+		toCsv +="X1,";
+		toCsv +="X2,";
+		toCsv +="t,";
+		toCsv +="E,";
+		toCsv +="X1 Result,";
+		toCsv +="X2 Result,";
+		toCsv +="Iterations";
+		toCsv +="\r\n";
+
+		values.forEach(function(rowArray) {
+		    let row = rowArray.x_init +',';
+			    row += rowArray.y_init +',';
+			    row += rowArray.t +',';
+			    row += rowArray.epsilon +',';
+			    row += rowArray.xv +',';
+			    row += rowArray.yv +',';
+			    row += rowArray.iter;
+		    toCsv += row + "\r\n";
+		});
+
+		var encodedUri = encodeURI(toCsv),
+			link = document.getElementById("to-csv");
+
+		link.setAttribute("href", encodedUri);
+		link.setAttribute("download", "rezultati.csv");
+		
+		$('#to-csv').show();
+	}
+
+	function addRow(){
+
+		alternativasAmount++;
+		var alternative='';
+
+		alternative+='<div id="input-data-'+alternativasAmount+'">';
+		alternative+='<input class="inn" type="number" id="x1-value-'+alternativasAmount+'" placeholder="X1" >';
+		alternative+='<input class="inn" type="number" id="x2-value-'+alternativasAmount+'" placeholder="X2" >';
+		alternative+='<input class="inn" type="number" id="t-value-'+alternativasAmount+'" placeholder="T" >';
+		alternative+='<input class="inn" type="number" id="epsilon-value-'+alternativasAmount+'" placeholder="E" >';
+		alternative+='</div>';
+		
+		$('#values-go-here').append(alternative);
+	}
+
+	function readValues(){
+
+		for(var i = 1; i<= alternativasAmount; i++){
+
+			var x_i = parseFloat(document.getElementById('x1-value-'+i).value),
+				y_i = parseFloat(document.getElementById('x2-value-'+i).value),
+				t_i = parseFloat(document.getElementById('t-value-'+i).value),
+				epsilon_i = parseFloat(document.getElementById('epsilon-value-'+i).value);
+
+			values.push(
+					{
+						xv: x_i,
+						yv: y_i,
+						x_init: x_i,
+						y_init: y_i,
+						t: t_i,
+						epsilon: epsilon_i
+					}
+			);
+		}
+	}
+
+	function evaluateAll(){
+
+		for(var pos = 1; pos<= alternativasAmount; pos++){
+
+			let scope = {
+			    x: values[pos-1].xv,
+			    y: values[pos-1].yv
+			}
+
+			values[pos-1].x_eval = x_derivative.evaluate(scope);
+			values[pos-1].y_eval = y_derivative.evaluate(scope);
+		}
+	}
+
+	function evaluates(pos){
+
+		let scope = {
+		    x: values[pos-1].xv,
+		    y: values[pos-1].yv
+		}
+
+		values[pos-1].x_eval = x_derivative.evaluate(scope);
+		values[pos-1].y_eval = y_derivative.evaluate(scope);	
+	}
+
+	function calculate(){
+
+		for(var pos = 1; pos<= alternativasAmount; pos++){
+
+			for(var iter = max_iter; Math.abs(values[pos-1].x_eval) > values[pos-1].epsilon && Math.abs(values[pos-1].y_eval) > values[pos-1].epsilon; iter--){
+				values[pos-1].xv = values[pos-1].xv - values[pos-1].t * values[pos-1].x_eval;
+				values[pos-1].yv = values[pos-1].yv - values[pos-1].t * values[pos-1].y_eval;
+				evaluates(pos);
+				values[pos-1].iter = (max_iter + 1) -iter; 
+			}
+		}
+	}
+
+	function showResults(){
+
+		for(var pos = 1; pos<= alternativasAmount; pos++){
+
+			var result='';
+
+			result+='<div id="result-data-'+pos+'">';
+			result+='<input type="text" class="inn" id="x1-result'+pos+'" placeholder="X1"  value="'+values[pos-1].xv+'" readonly>';
+			result+='<input type="text" class="inn" id="x2-result'+pos+'" placeholder="X2"  value="'+values[pos-1].yv+'" readonly>';
+			result+='<input type="text" class="inn" id="iter-result'+pos+'" placeholder="Iterācijas" value="'+values[pos-1].iter+'" readonly>';
+			result+='</div>';
+
+
+			$('#results-go-here').append(result);
+		}
+
+		$('#result-head').show();
+	}
+	
+	function launch(){
+
+		values = [];
+		$('#results-go-here').empty();
+		
+		readValues();
+		evaluateAll();
+		calculate();
+		showResults();
+		exportToCsv();
+	}
+
+	
+	var expr_string = 'x-2*y+2*x^2+2*x*y+4*y^2',
+		x_derivative,
+		y_derivative,
+		max_iter =1000,
+		values = [],
+		alternativasAmount = 0;
+
+	
+	x_derivative = math.derivative(expr_string, 'x');
+	y_derivative = math.derivative(expr_string, 'y');
+	
+	addRow();
+
+</script>
